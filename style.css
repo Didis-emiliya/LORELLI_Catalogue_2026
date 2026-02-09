@@ -1,4 +1,3 @@
-/* Използваме border-box за по-лесно изчисляване на размерите */
 *, *::before, *::after {
     box-sizing: border-box;
 }
@@ -13,11 +12,10 @@ body {
     width: 100vw;
     overflow: hidden;
     position: fixed;
-    font-family: system-ui, -apple-system, sans-serif; /* По-бързи системни шрифтове */
+    font-family: system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
 }
 
-/* Горна лента - фиксирана височина с contain за производителност */
 .top-bar {
     height: 60px;
     background: #1a1a1a;
@@ -39,11 +37,6 @@ body {
     border-radius: 4px;
     outline: none;
     font-size: 16px;
-    transition: border-color 0.2s;
-}
-
-#pageInput:focus {
-    border-color: #888;
 }
 
 #goBtn {
@@ -54,15 +47,8 @@ body {
     cursor: pointer;
     border-radius: 4px;
     font-weight: bold;
-    transition: background 0.2s;
-    will-change: opacity; /* Оптимизация за клик */
 }
 
-#goBtn:active {
-    background: #666;
-}
-
-/* Контейнер на книгата */
 #bookContainer {
     flex-grow: 1;
     width: 100%;
@@ -72,12 +58,14 @@ body {
     background-color: #000;
     position: relative;
     overflow: hidden;
-    /* Хардуерно ускорение за плавност при ресайз */
-    transform: translateZ(0); 
+    /* Изключваме стандартните жестове на браузъра, за да работи нашият скрипт */
+    touch-action: none; 
 }
 
-.stPageFlip {
-    background-color: #000 !important;
+/* Оптимизация за плавен зуум на контейнера на page-flip */
+.stf__wrapper {
+    will-change: transform;
+    transition: transform 0.1s ease-out;
 }
 
 .page {
@@ -85,19 +73,17 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    contain: strict; /* Казва на браузъра, че съдържанието не излиза извън рамката */
 }
 
 .page img {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    background-color: #000;
     user-select: none;
     -webkit-user-drag: none;
+    pointer-events: none; /* Предотвратява маркиране на снимката при зуум */
 }
 
-/* Долна лента */
 .bottom-bar {
     height: 160px;
     background: #111;
@@ -107,6 +93,7 @@ body {
     align-items: center;
     flex-shrink: 0;
     padding-bottom: 10px;
+    z-index: 1000;
 }
 
 #thumbnailContainer {
@@ -115,15 +102,11 @@ body {
     gap: 12px;
     overflow-x: auto;
     padding: 15px;
-    scrollbar-width: none; /* Скрива скролбара във Firefox */
+    scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
 }
 
-/* Скриване на скролбара за Chrome/Safari */
-#thumbnailContainer::-webkit-scrollbar {
-    display: none;
-}
+#thumbnailContainer::-webkit-scrollbar { display: none; }
 
 #thumbnailContainer img { 
     height: 80px; 
@@ -131,52 +114,17 @@ body {
     cursor: pointer; 
     flex-shrink: 0; 
     border: 1px solid transparent;
-    /* Оптимизация за анимация */
-    will-change: transform, opacity;
-    transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s, opacity 0.2s;
 }
 
 #thumbnailContainer img.active {
     opacity: 1;
     transform: scale(1.1);
     border-color: #fff;
-    box-shadow: 0 0 15px 5px rgba(255, 255, 255, 0.3);
-    z-index: 10;
 }
 
 #pageCounter { 
     color: #fff;
-    font-weight: bold; 
     font-size: 14px;
     margin-top: 5px;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-    pointer-events: none; /* Да не пречи на кликове */
-}
-
-/* Медия заявки - Оптимизирани */
-@media (orientation: landscape) and (max-height: 500px) {
-    .top-bar { height: 45px; }
-    .bottom-bar { height: 110px; }
-    #thumbnailContainer { padding: 8px; }
-    #thumbnailContainer img { height: 60px; }
-    #pageInput, #goBtn { height: 32px; font-size: 14px; padding: 4px 10px; }
-}
-
-@media (max-width: 600px) {
-    #pageInput { width: 80px; }
-    .bottom-bar { height: 140px; }
-    #thumbnailContainer img { height: 70px; }
-}
-
-@media (max-width: 768px) {
-    #bookContainer {
-        /* Позволява на браузъра да обработва pinch-zoom, 
-           но оставя превъртането на нас */
-        touch-action: manipulation; 
-    }
-    
-    .page img {
-        /* Предотвратява бъгове при опит за "влачене" на снимката при зуум */
-        pointer-events: none;
-    }
 }
