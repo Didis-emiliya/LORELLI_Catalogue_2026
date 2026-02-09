@@ -1,3 +1,8 @@
+/* Използваме border-box за по-лесно изчисляване на размерите */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
 body {
     margin: 0;
     padding: 0;
@@ -8,10 +13,11 @@ body {
     width: 100vw;
     overflow: hidden;
     position: fixed;
-    font-family: sans-serif;
+    font-family: system-ui, -apple-system, sans-serif; /* По-бързи системни шрифтове */
+    -webkit-font-smoothing: antialiased;
 }
 
-/* Горна лента */
+/* Горна лента - фиксирана височина с contain за производителност */
 .top-bar {
     height: 60px;
     background: #1a1a1a;
@@ -21,17 +27,23 @@ body {
     gap: 12px;
     z-index: 1000;
     flex-shrink: 0;
+    contain: layout; 
 }
 
 #pageInput {
     width: 100px;
     padding: 8px 12px;
     background: #000;
-    color: #ffffff; 
+    color: #fff; 
     border: 1px solid #444;
     border-radius: 4px;
     outline: none;
     font-size: 16px;
+    transition: border-color 0.2s;
+}
+
+#pageInput:focus {
+    border-color: #888;
 }
 
 #goBtn {
@@ -42,6 +54,12 @@ body {
     cursor: pointer;
     border-radius: 4px;
     font-weight: bold;
+    transition: background 0.2s;
+    will-change: opacity; /* Оптимизация за клик */
+}
+
+#goBtn:active {
+    background: #666;
 }
 
 /* Контейнер на книгата */
@@ -54,9 +72,10 @@ body {
     background-color: #000;
     position: relative;
     overflow: hidden;
+    /* Хардуерно ускорение за плавност при ресайз */
+    transform: translateZ(0); 
 }
 
-/* Настройки на библиотеката (премахване на бели ивици) */
 .stPageFlip {
     background-color: #000 !important;
 }
@@ -66,6 +85,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+    contain: strict; /* Казва на браузъра, че съдържанието не излиза извън рамката */
 }
 
 .page img {
@@ -73,6 +93,8 @@ body {
     height: 100%;
     object-fit: contain;
     background-color: #000;
+    user-select: none;
+    -webkit-user-drag: none;
 }
 
 /* Долна лента */
@@ -93,55 +115,68 @@ body {
     gap: 12px;
     overflow-x: auto;
     padding: 15px;
-    scrollbar-width: none;
+    scrollbar-width: none; /* Скрива скролбара във Firefox */
     -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
 }
 
-/* Миниатюри */
+/* Скриване на скролбара за Chrome/Safari */
+#thumbnailContainer::-webkit-scrollbar {
+    display: none;
+}
+
 #thumbnailContainer img { 
     height: 80px; 
     opacity: 0.4; 
     cursor: pointer; 
-    transition: all 0.3s ease-in-out; 
     flex-shrink: 0; 
     border: 1px solid transparent;
+    /* Оптимизация за анимация */
+    will-change: transform, opacity;
+    transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Glow ефект за активната миниатюра */
 #thumbnailContainer img.active {
     opacity: 1;
     transform: scale(1.1);
-    border: 1px solid #ffffff;
-    box-shadow: 0 0 15px 5px rgba(255, 255, 255, 0.4);
+    border-color: #fff;
+    box-shadow: 0 0 15px 5px rgba(255, 255, 255, 0.3);
     z-index: 10;
 }
 
-/* Брояч на страници */
 #pageCounter { 
-    color: #ffffff;
+    color: #fff;
     font-weight: bold; 
     font-size: 14px;
     margin-top: 5px;
-    display: block !important;
-    text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    pointer-events: none; /* Да не пречи на кликове */
 }
 
-/* Хоризонтален режим за мобилни (Landscape) */
+/* Медия заявки - Оптимизирани */
 @media (orientation: landscape) and (max-height: 500px) {
-    .top-bar { height: 40px; }
-    .bottom-bar { height: 100px; }
-    #thumbnailContainer { padding: 5px; }
-    #thumbnailContainer img { height: 50px; }
-    #thumbnailContainer img.active {
-        box-shadow: 0 0 10px 3px rgba(255, 255, 255, 0.4);
-    }
-    #pageInput { height: 25px; font-size: 12px; padding: 2px; width: 80px; }
-    #goBtn { height: 25px; padding: 0 10px; font-size: 12px; }
-    #pageCounter { font-size: 12px; margin-top: 2px; }
+    .top-bar { height: 45px; }
+    .bottom-bar { height: 110px; }
+    #thumbnailContainer { padding: 8px; }
+    #thumbnailContainer img { height: 60px; }
+    #pageInput, #goBtn { height: 32px; font-size: 14px; padding: 4px 10px; }
 }
 
-/* Вертикален мобилен режим (Portrait) */
-@media (orientation: portrait) and (max-width: 600px) {
+@media (max-width: 600px) {
+    #pageInput { width: 80px; }
     .bottom-bar { height: 140px; }
     #thumbnailContainer img { height: 70px; }
+}
+
+@media (max-width: 768px) {
+    #bookContainer {
+        /* Позволява на браузъра да обработва pinch-zoom, 
+           но оставя превъртането на нас */
+        touch-action: manipulation; 
+    }
+    
+    .page img {
+        /* Предотвратява бъгове при опит за "влачене" на снимката при зуум */
+        pointer-events: none;
+    }
 }

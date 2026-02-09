@@ -4,20 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Digital Book Viewer</title>
-    <link rel="icon" href="data:,">
+    
+    <meta name="description" content="Дигитален четец на книги">
+    
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    
     <link rel="stylesheet" href="style.css">
+
+    <link rel="preload" href="https://unpkg.com/page-flip/dist/js/page-flip.browser.js" as="script">
 </head>
 <body>
-    <div class="top-bar">
-        <input type="text" id="pageInput" placeholder="Page" onfocus="if(this.value==='') this.value='Page ';">
-        <button id="goBtn">Go</button>
-    </div>
-    <div id="bookContainer"></div>
-    <div class="bottom-bar">
+
+    <header class="top-bar">
+        <input type="number" id="pageInput" placeholder="Страница" min="1">
+        <button id="goBtn" aria-label="Отиди на страница">Go</button>
+    </header>
+
+    <main id="bookContainer" aria-live="polite"></main>
+
+    <footer class="bottom-bar">
         <div id="thumbnailContainer"></div>
-        <div id="pageCounter">Cover</div>
-    </div>
-    <script src="https://unpkg.com/page-flip/dist/js/page-flip.browser.js"></script>
+        <div id="pageCounter" role="status">Cover</div>
+    </footer>
+
+    <script src="https://unpkg.com/page-flip/dist/js/page-flip.browser.js" defer></script>
     <script src="script.js" defer></script>
 </body>
 </html>
