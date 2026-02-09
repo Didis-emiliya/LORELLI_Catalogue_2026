@@ -1,0 +1,147 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #000;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    position: fixed;
+    font-family: sans-serif;
+}
+
+/* Горна лента */
+.top-bar {
+    height: 60px;
+    background: #1a1a1a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    z-index: 1000;
+    flex-shrink: 0;
+}
+
+#pageInput {
+    width: 100px;
+    padding: 8px 12px;
+    background: #000;
+    color: #ffffff; 
+    border: 1px solid #444;
+    border-radius: 4px;
+    outline: none;
+    font-size: 16px;
+}
+
+#goBtn {
+    padding: 8px 20px;
+    background: #444;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+/* Контейнер на книгата */
+#bookContainer {
+    flex-grow: 1;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #000;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Настройки на библиотеката (премахване на бели ивици) */
+.stPageFlip {
+    background-color: #000 !important;
+}
+
+.page {
+    background-color: #000 !important;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.page img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background-color: #000;
+}
+
+/* Долна лента */
+.bottom-bar {
+    height: 160px;
+    background: #111;
+    border-top: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    padding-bottom: 10px;
+}
+
+#thumbnailContainer {
+    width: 100%;
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 15px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Миниатюри */
+#thumbnailContainer img { 
+    height: 80px; 
+    opacity: 0.4; 
+    cursor: pointer; 
+    transition: all 0.3s ease-in-out; 
+    flex-shrink: 0; 
+    border: 1px solid transparent;
+}
+
+/* Glow ефект за активната миниатюра */
+#thumbnailContainer img.active {
+    opacity: 1;
+    transform: scale(1.1);
+    border: 1px solid #ffffff;
+    box-shadow: 0 0 15px 5px rgba(255, 255, 255, 0.4);
+    z-index: 10;
+}
+
+/* Брояч на страници */
+#pageCounter { 
+    color: #ffffff;
+    font-weight: bold; 
+    font-size: 14px;
+    margin-top: 5px;
+    display: block !important;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+}
+
+/* Хоризонтален режим за мобилни (Landscape) */
+@media (orientation: landscape) and (max-height: 500px) {
+    .top-bar { height: 40px; }
+    .bottom-bar { height: 100px; }
+    #thumbnailContainer { padding: 5px; }
+    #thumbnailContainer img { height: 50px; }
+    #thumbnailContainer img.active {
+        box-shadow: 0 0 10px 3px rgba(255, 255, 255, 0.4);
+    }
+    #pageInput { height: 25px; font-size: 12px; padding: 2px; width: 80px; }
+    #goBtn { height: 25px; padding: 0 10px; font-size: 12px; }
+    #pageCounter { font-size: 12px; margin-top: 2px; }
+}
+
+/* Вертикален мобилен режим (Portrait) */
+@media (orientation: portrait) and (max-width: 600px) {
+    .bottom-bar { height: 140px; }
+    #thumbnailContainer img { height: 70px; }
+}
