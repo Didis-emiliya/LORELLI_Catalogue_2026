@@ -1,4 +1,10 @@
 let pageFlip = null;
+let currentScale = 1;
+let posX = 0, posY = 0;
+let isZoomed = false;
+
+const saveProgress = (idx) => sessionStorage.setItem('lastPage', idx);
+const getProgress = () => parseInt(sessionStorage.getItem('lastPage')) || 0;
 
 function generatePageData() {
     const pages = [
@@ -7,7 +13,6 @@ function generatePageData() {
         { img: 'Covers_Front_White.webp', label: 'Cover White' },
         { img: 'Page_01.webp', label: 'Page 1' }
     ];
-
     for (let i = 2; i <= 279; i += 2) {
         pages.push({ img: `Page_${i.toString().padStart(2, '0')}.webp`, label: `Page ${i}` });
         if (i + 1 <= 279) {
@@ -16,7 +21,6 @@ function generatePageData() {
             pages.push({ img: 'blank.webp', label: 'Blank' });
         }
     }
-
     pages.push(
         { img: 'Page_280.webp', label: 'Page 280' },
         { img: 'Covers_Front_White.webp', label: 'Cover White' },
@@ -31,72 +35,76 @@ function initBook() {
     const bookContainer = document.getElementById('bookContainer');
     if (!bookContainer) return;
 
-    const isMobilePortrait = (window.innerWidth < 768 && window.innerHeight > window.innerWidth);
+    const isMobile = window.innerWidth < 768;
+    const isLandscape = window.innerWidth > window.innerHeight;
 
-    pageFlip = new St.PageFlip(bookContainer, {
-        width: isMobilePortrait ? window.innerWidth : 3543,
-        height: isMobilePortrait ? window.innerHeight * 0.75 : 2551,
-        size: isMobilePortrait ? 'fixed' : 'stretch',
-        mode: isMobilePortrait ? 'portrait' : 'double',
-        startBackground: 'transparent',
-        showCover: false,
-        flippingTime: 800,
-        startPage: 1,
-        disableFlipByClick: false
-    });
+    // Режим: Portrait само за изправен телефон. Всичко останало е Double.
+    const viewMode = (isMobile && !isLandscape) ? 'portrait' : 'double';
+
+    let config = {};
+
+    if (!isMobile) {
+        // --- ДЕСКТОП КОНФИГУРАЦИЯ ---
+        config = {
+            width: 3543,
+            height: 2551,
+            size: 'stretch',
+            mode: 'double',
+            startBackground: 'transparent',
+            showCover: false,
+            flippingTime: 800,
+            startPage: getProgress(),
+            disableFlipByClick: false,
+            useMouseEvents: true
+        };
+    } else {
+        // --- МОБИЛНА КОНФИГУРАЦИЯ ---
+        const topBarH = isLandscape ? 45 : 60;
+        const bottomBarH = isLandscape ? 70 : 80;
+        const availableHeight = window.innerHeight - (topBarH + bottomBarH + 20);
+
+        config = {
+            width: isLandscape ? availableHeight * 1.4 : window.innerWidth,
+            height: availableHeight,
+            size: 'fixed',
+            mode: viewMode,
+            autoSize: true, 
+            centering: true, // Някои версии на библиотеката поддържат този параметър
+            startBackground: 'transparent',
+            showCover: false,
+            flippingTime: 600,
+            startPage: getProgress(),
+            disableFlipByClick: false,
+            swipeDistance: 30,
+            useMouseEvents: true
+        };
+    }
+
+    pageFlip = new St.PageFlip(bookContainer, config);
 
     const htmlPages = pagePairs.map(p => {
         const div = document.createElement('div');
         div.className = 'page';
-        div.dataset.density = 'soft';
-        div.innerHTML = `<img src="images/${p.img}" alt="${p.label}" loading="lazy">`;
+        div.innerHTML = `
+            <div class="shadow-overlay"></div>
+            <div class="outer-shadow"></div>
+            <img src="images/${p.img}" alt="${p.label}" loading="lazy">
+        `;
         return div;
     });
 
     pageFlip.loadFromHTML(htmlPages);
 
-    // --- МОБИЛЕН PINCH-TO-ZOOM & PAN ЛОГИКА ---
-    let scale = 1, lastDist = 0;
-    let posX = 0, posY = 0, lastPosX = 0, lastPosY = 0;
-    let isDragging = false;
+    // --- ZOOM LOGIC ---
+    setupZoomLogic(bookContainer);
 
-    bookContainer.addEventListener('touchstart', (e) => {
-        if (e.touches.length === 2) {
-            lastDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-        } else if (e.touches.length === 1 && scale > 1) {
-            isDragging = true;
-            lastPosX = e.touches[0].pageX - posX;
-            lastPosY = e.touches[0].pageY - posY;
-        }
-    }, { passive: false });
-
-    bookContainer.addEventListener('touchmove', (e) => {
-        const wrapper = bookContainer.querySelector('.stf__wrapper');
-        if (!wrapper) return;
-
-        if (e.touches.length === 2) {
-            e.preventDefault();
-            const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-            scale = Math.min(Math.max(1, scale * (dist / lastDist)), 4);
-            lastDist = dist;
-            
-            if (scale === 1) { posX = 0; posY = 0; }
-            wrapper.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
-        } else if (isDragging && scale > 1) {
-            e.preventDefault();
-            posX = e.touches[0].pageX - lastPosX;
-            posY = e.touches[0].pageY - lastPosY;
-            wrapper.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
-        }
-    }, { passive: false });
-
-    bookContainer.addEventListener('touchend', () => { isDragging = false; });
-
-    // --- ОСТАНАЛИ ФУНКЦИОНАЛНОСТИ (Миниатюри, Бутони и т.н.) ---
+    // --- ИНТЕРФЕЙС И НАВИГАЦИЯ ---
     const thumbContainer = document.getElementById('thumbnailContainer');
     const pageCounter = document.getElementById('pageCounter');
+    const inputField = document.getElementById('pageInput');
 
-    if (thumbContainer) {
+    // Генериране на миниатюри, ако контейнерът е празен
+    if (thumbContainer && thumbContainer.children.length === 0) {
         const fragment = document.createDocumentFragment();
         pagePairs.forEach((p, i) => {
             if (p.isFake) return;
@@ -104,59 +112,120 @@ function initBook() {
             img.src = `images/${p.img}`;
             img.dataset.index = i;
             img.loading = "lazy";
+            img.onclick = () => pageFlip.flip(parseInt(img.dataset.index));
             fragment.appendChild(img);
         });
         thumbContainer.appendChild(fragment);
-
-        thumbContainer.addEventListener('click', (e) => {
-            if (e.target.tagName === 'IMG') pageFlip.flip(parseInt(e.target.dataset.index));
-        });
     }
 
     pageFlip.on('flip', (e) => {
         const index = e.data;
-        if (index === 0) return pageFlip.flip(1);
-        if (index === pagePairs.length - 1) return pageFlip.flip(pagePairs.length - 2);
+        saveProgress(index);
 
-        const thumbs = thumbContainer.children;
-        const thumbIdx = Array.from(thumbs).findIndex(t => t.dataset.index == index);
-        
-        if (thumbIdx !== -1) {
-            const active = thumbContainer.querySelector('.active');
-            if (active) active.classList.remove('active');
-            thumbs[thumbIdx].classList.add('active');
-            thumbs[thumbIdx].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        // Актуализация на миниатюрите
+        const active = thumbContainer.querySelector('.active');
+        if (active) active.classList.remove('active');
+        const currentThumb = thumbContainer.querySelector(`img[data-index="${index}"]`);
+        if (currentThumb) {
+            currentThumb.classList.add('active');
+            currentThumb.scrollIntoView({ behavior: 'smooth', inline: 'center' });
         }
 
+        // Актуализация на брояча
         const label = pagePairs[index].label;
-        if (pageCounter) {
-            pageCounter.textContent = label.startsWith('Page') ? `Page ${label.split(' ')[1]} / 280` : label;
+        const counterText = label.startsWith('Page') ? `Page ${label.split(' ')[1]} / 280` : (label.includes('Hidden') ? '' : label);
+
+        if (isMobile) {
+            if (inputField) inputField.placeholder = counterText;
+        } else {
+            if (pageCounter) pageCounter.textContent = counterText;
+            if (inputField) inputField.placeholder = "Go to...";
         }
     });
 
+    // Функция за бутона "Go"
     const performGo = () => {
-        const inputField = document.getElementById('pageInput');
-        const pageNum = parseInt(inputField.value, 10);
+        const val = inputField.value;
+        const pageNum = parseInt(val);
         if (pageNum >= 1 && pageNum <= 280) {
             const idx = pagePairs.findIndex(p => p.label === `Page ${pageNum}`);
             if (idx !== -1) pageFlip.flip(idx);
         }
-        inputField.value = ""; inputField.blur();
+        inputField.value = ""; 
+        inputField.blur();
     };
 
     document.getElementById('goBtn').onclick = performGo;
+    inputField.onkeypress = (e) => { if (e.key === 'Enter') performGo(); };
+
+    // Клавиатурна навигация
+    document.addEventListener('keydown', (e) => {
+        if (!pageFlip || isZoomed) return;
+        if (['ArrowRight', 'ArrowDown'].includes(e.key)) pageFlip.flipNext();
+        else if (['ArrowLeft', 'ArrowUp'].includes(e.key)) pageFlip.flipPrev();
+    });
 }
 
-document.addEventListener('DOMContentLoaded', initBook);
+function setupZoomLogic(bookContainer) {
+    let startDist = 0, initialScale = 1, touchStartX = 0, touchStartY = 0;
 
-window.addEventListener('resize', () => {
-    setTimeout(() => {
-        const isPortrait = (window.innerWidth < 768 && window.innerHeight > window.innerWidth);
-        if (pageFlip) {
-            const currentMode = pageFlip.getSettings().mode;
-            if ((isPortrait && currentMode !== 'portrait') || (!isPortrait && currentMode !== 'double')) {
-                location.reload();
-            }
+    bookContainer.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+            startDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+            initialScale = currentScale;
+        } else if (e.touches.length === 1 && isZoomed) {
+            touchStartX = e.touches[0].pageX - posX;
+            touchStartY = e.touches[0].pageY - posY;
         }
-    }, 200);
-});
+    }, { passive: false });
+
+    bookContainer.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2) {
+            e.preventDefault();
+            const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+            currentScale = Math.min(Math.max(initialScale * (dist / startDist), 1), 4);
+            isZoomed = currentScale > 1.05;
+            pageFlip.updateConfig({ disableFlipByClick: isZoomed });
+            updateTransform(bookContainer);
+        } else if (e.touches.length === 1 && isZoomed) {
+            e.preventDefault();
+            posX = e.touches[0].pageX - touchStartX;
+            posY = e.touches[0].pageY - touchStartY;
+            updateTransform(bookContainer);
+        }
+    }, { passive: false });
+
+    bookContainer.addEventListener('touchend', (e) => {
+        staticDoubleTap(e, bookContainer);
+    });
+}
+
+function updateTransform(container) {
+    const el = container.querySelector('.stPageFlip');
+    if (el) {
+        el.style.transform = `scale(${currentScale}) translate(${posX / currentScale}px, ${posY / currentScale}px)`;
+    }
+}
+
+let lastTap = 0;
+function staticDoubleTap(e, container) {
+    const now = Date.now();
+    if (now - lastTap < 300) {
+        currentScale = 1; posX = 0; posY = 0; isZoomed = false;
+        pageFlip.updateConfig({ disableFlipByClick: false });
+        updateTransform(container);
+        e.preventDefault();
+    }
+    lastTap = now;
+}
+
+// ПРЕДПАЗВА ОТ ПРЕЗАРЕЖДАНЕ ПРИ СКРОЛВАНЕ В МОБИЛНИ БРАУЗЪРИ
+let lastWidth = window.innerWidth;
+window.onresize = () => {
+    if (window.innerWidth !== lastWidth) {
+        lastWidth = window.innerWidth;
+        location.reload();
+    }
+};
+
+document.addEventListener('DOMContentLoaded', initBook);
